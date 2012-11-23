@@ -119,17 +119,19 @@ let rowWin row =
 
     testSequences sequences
    
+let testWin elements recursion wintype =
+    let win = rowWin elements
+    match win with 
+        | (won, CellElement.Some(n)) -> if won then 
+                                                System.Console.WriteLine("Player {0} has won a {1}!", n, wintype)
+                                                true
+                                            else recursion()
+        | (_) -> recursion() 
+
 let rec gameOverRows board = 
     match board with
         | [] -> false
-        | h::t -> let winner = rowWin h 
-                  match winner with
-                    | (won, CellElement.None) -> gameOverRows t
-                    | (won, CellElement.Some(x)) -> 
-                                             if won then 
-                                                System.Console.WriteLine("Player {0} has won a row!", x)
-                                                true
-                                             else gameOverRows t
+        | h::t -> testWin h (fun () -> gameOverRows t) "row"
 
 
 let rec gameOverCols board start = 
@@ -137,22 +139,26 @@ let rec gameOverCols board start =
         false
     else
         let elements = List.fold(fun columns row -> (getRowElement row start)::columns) [] board
-        let win = rowWin elements
-        match win with 
-            | (won, CellElement.Some(n)) -> if won then 
-                                                System.Console.WriteLine("Player {0} has won a column!", n)
-                                                true
-                                            else gameOverCols board (start+1)
-            | (_) -> gameOverCols board (start+1)
+        testWin elements (fun () -> gameOverCols board (start+1)) "column"
     
 
-let gameOverDiags board = false
+let gameOverDiags board start updater = 
+    let elements = List.fold(fun acc row -> 
+                let index = snd acc
+                let src = fst acc
+                (getRowElement row index)::src, updater index) ([],start) board
+
+    let item = match elements with
+                 | (list, item) -> list     
+                                              
+    testWin item (fun () -> false) "diagonal"
 
 let gameOver board = 
     let rowWin = gameOverRows board
     let colWin = gameOverCols board 0
-    let diagWin = gameOverDiags board
-    if(rowWin || colWin || diagWin) then
+    let diagWinLeft = gameOverDiags board 0 (fun x -> x + 1)
+    let diagWinRight = gameOverDiags board (board.Length-1) (fun x -> x - 1)
+    if(rowWin || colWin || diagWinLeft || diagWinRight) then
         true
     else 
         false
