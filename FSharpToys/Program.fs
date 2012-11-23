@@ -107,17 +107,42 @@ let setToken board (row,col) token = reverseList (setTokenHelper board (row,col)
 // detect game over
 //=======================================
 
-let rec rowWin row = 
-    match row with 
-        | [] -> true
-        | CellElement.None::t -> false
-        | CellElement.Some(h)::t -> rowWin t
+let rowWin row = 
+    let sequences = row |> Seq.countBy id |> Seq.toList
+
+    let rec testSequences seq = 
+        match seq with 
+            | [] -> (false, CellElement.None)
+            | h::t -> match h with 
+                        | (key, count) -> if count = Seq.length row then (true, key)
+                                          else testSequences t
+
+    testSequences sequences
    
-let rec gameOver board = 
+let rec gameOverRows board = 
     match board with
         | [] -> false
-        | h::t -> if rowWin h then true
-                  else gameOver t
+        | h::t -> let winner = rowWin h 
+                  match winner with
+                    | (won, CellElement.None) -> gameOverRows t
+                    | (won, CellElement.Some(x)) -> 
+                                             if won then 
+                                                System.Console.WriteLine("Player {0} has won!", x)
+                                                true
+                                             else gameOverRows t
+
+let gameOverCols board = false
+
+let gameOverDiags board = false
+
+let gameOver board = 
+    let rowWin = gameOverRows board
+    let colWin = gameOverCols board
+    let diagWin = gameOverDiags board
+    if(rowWin || colWin || diagWin) then
+        true
+    else 
+        false
 
 //=======================================
 // input
@@ -134,17 +159,18 @@ let readInPiece () =
     piece
 
 let readInPosition boardSize = 
-    
     let getPos = fun (label : string) -> 
                         System.Console.Write("{0}: ", label)
                         let mutable item = System.Console.ReadLine()
+                        
                         let validMove = fun x -> x >= 0 && x < boardSize
+                        
                         while validMove (System.Convert.ToInt32 item) = false do
                             System.Console.WriteLine("Enter a valid move (0 to {0})", boardSize - 1)
                             item <- System.Console.ReadLine()
                         System.Convert.ToInt32(item)
 
-    (getPos "x", getPos "y")
+    (getPos "row", getPos "col")
         
 //===========================================
 // play game
