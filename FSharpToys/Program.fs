@@ -127,17 +127,30 @@ let rec gameOverRows board =
                     | (won, CellElement.None) -> gameOverRows t
                     | (won, CellElement.Some(x)) -> 
                                              if won then 
-                                                System.Console.WriteLine("Player {0} has won!", x)
+                                                System.Console.WriteLine("Player {0} has won a row!", x)
                                                 true
                                              else gameOverRows t
 
-let gameOverCols board = false
+
+let rec gameOverCols board start = 
+    if start >= List.length board then 
+        false
+    else
+        let elements = List.fold(fun columns row -> (getRowElement row start)::columns) [] board
+        let win = rowWin elements
+        match win with 
+            | (won, CellElement.Some(n)) -> if won then 
+                                                System.Console.WriteLine("Player {0} has won a column!", n)
+                                                true
+                                            else gameOverCols board (start+1)
+            | (_) -> gameOverCols board (start+1)
+    
 
 let gameOverDiags board = false
 
 let gameOver board = 
     let rowWin = gameOverRows board
-    let colWin = gameOverCols board
+    let colWin = gameOverCols board 0
     let diagWin = gameOverDiags board
     if(rowWin || colWin || diagWin) then
         true
@@ -179,6 +192,7 @@ let readInPosition boardSize =
 let rec playGame board = 
     if gameOver board then 
         System.Console.WriteLine("Game over!")
+        printBoard board
         System.Console.ReadKey()
     else
         printBoard board
