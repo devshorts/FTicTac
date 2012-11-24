@@ -1,30 +1,12 @@
 ﻿exception DimensionException of string
-exception InvalidPlayer of string
 
-type Player = 
-    | X
-    | O
+open Player
 
 type CellElement =
     | Some of Player
     | None
 
 let reverseList list = List.fold (fun acc elem -> elem::acc) [] list
-
-//---------------------------------
-// player information
-//---------------------------------
-
-let mapPieceToPlayer piece = 
-    match piece with 
-        | "x" -> Player.X
-        | "o" -> Player.O
-        | _ -> raise(InvalidPlayer("Piece is invalid"))
-
-let tokenType player = 
-    match player with 
-        | Player.X -> "x"
-        | Player.O -> "o"
 
 //---------------------------------
 // create the board
@@ -242,60 +224,31 @@ let gameOver board =
     else 
         false
 
-//=======================================
-// input
-//=======================================
-
-let pieceValid piece = piece = "x" || piece = "o"
-
-let readInPiece () = 
-    System.Console.Write("Read in piece 'x' or 'o': ")
-    let mutable piece = System.Console.ReadLine()
-    while pieceValid piece = false do
-        System.Console.WriteLine("Valid pieces are 'x' and 'o'. You entered {0}", piece)
-        piece <- System.Console.ReadLine()
-    done
-
-    mapPieceToPlayer piece
-
-let readInPosition boardSize = 
-    let safeConvert (number:string) = 
-        try
-            (System.Convert.ToInt32 number)
-        with
-            | _ -> -1
-
-    let getPosFunc = fun (label : string) -> 
-                        System.Console.Write("{0}: ", label)
-                        let mutable item = System.Console.ReadLine()
-                        
-                        let validMove = fun x -> let num = safeConvert x
-                                                 num >= 0 && num < boardSize
-                        
-                        while validMove item = false do
-                            System.Console.WriteLine("Enter a valid move (0 to {0})", boardSize - 1)
-                            item <- System.Console.ReadLine()
-
-                        System.Convert.ToInt32(item)
-
-    (getPosFunc "row", getPosFunc "col")
         
 //===========================================
 // play game
 //===========================================
 
-let rec playGame board humanMoveFunc = 
-    if gameOver board then 
-        System.Console.WriteLine("Game over!")
-        printBoard board
-        System.Console.ReadKey()
-    else
-        printBoard board
-        let move = humanMoveFunc board
-        match move with 
-            | (token, (row, col)) -> 
-                let newBoard = setToken board (row, col) token
-                playGame newBoard humanMoveFunc
+let playGame board (players:GamePlayer list) = 
+    let rec playGameHelper board (remainingPlayers:GamePlayer list) sourcePlayers = 
+        if gameOver board then 
+            System.Console.WriteLine("Game over!")
+            printBoard board
+            System.Console.ReadKey()
+        else
+            match remainingPlayers with                 
+                | currentPlayer::otherPlayers -> 
+                    printBoard board
+                    let move = currentPlayer.play board
+                    match move with 
+                        | (token, (row, col)) -> 
+                            let newBoard = setToken board (row, col) token
+                            playGameHelper newBoard otherPlayers sourcePlayers
+                             
+                | [] -> playGameHelper board sourcePlayers sourcePlayers 
+
+    playGameHelper board players players
+        
 
 //=======================================
 // human player logic
@@ -305,6 +258,11 @@ let rec playGame board humanMoveFunc =
 returns a tuple of player token with a tuple of (row, col)
 *)
 
-let humanPlayerMove board = (readInPiece(), readInPosition (List.length board))
+let humanPlayerX = new GamePlayer(Player.X)
+let humanPlayerO = new GamePlayer(Player.O)
 
-ignore(playGame (createBoard 3) humanPlayerMove)
+let playersList = [humanPlayerX;humanPlayerO]
+
+let startingBoard = createBoard 3
+
+ignore(playGame startingBoard playersList)
