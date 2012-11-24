@@ -30,15 +30,16 @@ let tokenType player =
 // create the board
 //---------------------------------
 
-let rec createRow width = 
-    if width = 0 then []
-    else CellElement.None::createRow(width - 1)
+let createBoard dimension =     
+    let rec createRow width = 
+        if width = 0 then []
+        else CellElement.None::createRow(width - 1)
 
-let rec createBoardHelper dimension init = 
-    if(init = 0) then []
-    else createRow(dimension)::(createBoardHelper dimension (init-1))
+    let rec createBoardHelper dimension init = 
+        if(init = 0) then []
+        else createRow(dimension)::(createBoardHelper dimension (init-1))
 
-let createBoard dimension = createBoardHelper dimension dimension
+    createBoardHelper dimension dimension
 
 //---------------------------------
 // get from board
@@ -72,16 +73,15 @@ let rec printRow row =
             System.Console.Write(" | ")
             printRow t
 
-
-let rec printBoardHelper board = 
-    match board with 
-        | [] -> System.Console.WriteLine()
-        | h::[] -> printRow h
-        | h::t -> 
-            printRow h
-            printBoardHelper t
-
 let printBoard board =
+    let rec printBoardHelper board = 
+        match board with 
+            | [] -> System.Console.WriteLine()
+            | h::[] -> printRow h
+            | h::t -> 
+                printRow h
+                printBoardHelper t
+
     printBoardHelper board
     System.Console.WriteLine()
     System.Console.WriteLine()
@@ -113,36 +113,42 @@ function to the row to transform its elements. The map function finds the right 
 transforms it into the new token (if valid) and returns a new row with the elements updated
 Then we can finish rebuilding the remainder of the board
 *)
-let rec setTokenHelper board (row, col) token currentRow = 
-    // returns the next row in the board
-    let nextRow () = setTokenHelper board (row, col) token (currentRow-1)
 
-    if currentRow = row then
+let applyMoveToRow currentRow columnIndex token = 
+    // if we're on the current row, we apply a map function to the row
+    // to transform it, but we only want to change the actual element at the
+    // column index
+
+    let counter = fun x -> x + 1
+    let add = ref 0
+    let isCorrectColumnFunc = fun () -> 
+                                    let orig = !add
+                                    add := counter !add 
+                                    if orig = columnIndex then true
+                                    else false
+
+    let updateTokenFunc = updateToken (CellElement.Some(token)) isCorrectColumnFunc
+
+    List.map updateTokenFunc currentRow
+
+let setToken board (row,col) token = 
+    let rec setTokenHelper board (row, col) token currentRowIndex = 
         
-        // if we're on the current row, we apply a map function to the row
-        // to transform it, but we only want to change the actual element at the
-        // column index
+        if currentRowIndex < 0 || currentRowIndex >= List.length board then []
+        else 
+            let currentRow = getRowElement board currentRowIndex
 
-        let counter = fun x -> x + 1
-        let add = ref 0
-        let isCorrectColumnFunc = fun () -> 
-                                        let orig = !add
-                                        add := counter !add 
-                                        if orig = col then true
-                                        else false
+            // returns the next row in the board
+            let nextRow () = setTokenHelper board (row, col) token (currentRowIndex-1)
 
-        let updateTokenFunc = updateToken (CellElement.Some(token)) isCorrectColumnFunc
+            if currentRowIndex = row then
+                let updatedRow = (applyMoveToRow currentRow col token)
+                updatedRow::nextRow()      
+                  
+            else currentRow::nextRow()
 
-        let rowElement = getRowElement board currentRow
+    reverseList (setTokenHelper board (row,col) token (board.Length-1))
 
-        (List.map updateTokenFunc rowElement)::nextRow()
-    else
-        if currentRow = -1 then []            
-        else
-            let rowElement = getRowElement board currentRow
-            rowElement::nextRow()
-
-let setToken board (row,col) token = reverseList (setTokenHelper board (row,col) token (board.Length-1))
 
 //=======================================
 // detect game over
@@ -153,14 +159,14 @@ Function to test if a row has all the same element. CountBy aggregates the list 
 (item, count) so we can fold the list into a list of tuples that tells us 
 how many of the cell elements existed.  We can test each type of winner
 *)
-let rowWin row = 
-    let rowsGroupedByToken = row |> Seq.countBy id |> Seq.toList
+let allCellsHaveSamePlayer cells = 
+    let rowsGroupedByToken = cells |> Seq.countBy id |> Seq.toList
 
     let rec rowHasSameElement rowGroup = 
         match rowGroup with 
             | [] -> (false, CellElement.None)
             | h::t -> match h with 
-                        | (key, count) -> if count = Seq.length row then (true, key)
+                        | (key, count) -> if count = Seq.length cells then (true, key)
                                           else rowHasSameElement t
 
     rowHasSameElement rowsGroupedByToken
@@ -170,8 +176,8 @@ Helper function to test a group of elements. All elements have to be of the same
 or they don't win.  We can pass in a recursion function so that we basically get the next 
 set of elements to test.  
 *)
-let testWin cellList callback winTypeString =
-    let win = rowWin cellList
+let isWin cellList callback winTypeString =
+    let win = allCellsHaveSamePlayer cellList
     match win with 
         | (won, CellElement.Some(token)) -> if won then 
                                                 System.Console.WriteLine("Player {0} has won a {1}!", tokenType token, winTypeString)
@@ -185,7 +191,7 @@ The easiest case with just testing each row
 let rec gameOverRows board = 
     match board with
         | [] -> false
-        | h::t -> testWin h (fun () -> gameOverRows t) "row"
+        | row::remainingBoard -> isWin row (fun () -> gameOverRows remainingBoard) "row"
 
 (* 
 Check the columns. For each row in the board we want to get the same element
@@ -198,7 +204,7 @@ let rec gameOverCols board columnIndex =
     else
         let columnElements = List.fold(fun columns row -> (getRowElement row columnIndex)::columns) [] board
         let nextColumn = columnIndex + 1
-        testWin columnElements (fun () -> gameOverCols board nextColumn) "column"
+        isWin columnElements (fun () -> gameOverCols board nextColumn) "column"
     
 
 (*
@@ -217,7 +223,7 @@ let gameOverDiags board start updater =
     let diagonalElements = match diagonalGroup with
                              | (list, item) -> list     
                                               
-    testWin diagonalElements (fun () -> false) "diagonal"
+    isWin diagonalElements (fun () -> false) "diagonal"
 
 (*
  Lazily check all the combinatoins: row, columns, diagonals
