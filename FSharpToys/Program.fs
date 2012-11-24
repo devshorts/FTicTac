@@ -2,10 +2,6 @@
 
 open Player
 
-type CellElement =
-    | Some of Player
-    | None
-
 let reverseList list = List.fold (fun acc elem -> elem::acc) [] list
 
 //---------------------------------
@@ -229,8 +225,8 @@ let gameOver board =
 // play game
 //===========================================
 
-let playGame board (players:GamePlayer list) = 
-    let rec playGameHelper board (remainingPlayers:GamePlayer list) sourcePlayers = 
+let playGame board (players:IPlayer list) = 
+    let rec playGameHelper board (remainingPlayers:IPlayer list) sourcePlayers = 
         if gameOver board then 
             System.Console.WriteLine("Game over!")
             printBoard board
@@ -251,15 +247,14 @@ let playGame board (players:GamePlayer list) =
         
 
 //=======================================
-// human player logic
+// define the players
 //=======================================
-        
-(*
-returns a tuple of player token with a tuple of (row, col)
-*)
+    
+// upcast the player objects to interfaces since unlike c# you can't call methods
+// of an interface on an object implementing that interface without direct casting
 
-let humanPlayerX = new GamePlayer(Player.X)
-let humanPlayerO = new GamePlayer(Player.O)
+let humanPlayerX = new HumanPlayer(Player.X) :> IPlayer
+let humanPlayerO = new HumanPlayer(Player.O) :> IPlayer
 
 let playersList = [humanPlayerX;humanPlayerO]
 
