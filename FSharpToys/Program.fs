@@ -132,6 +132,8 @@ let applyMoveToRow currentRow columnIndex token =
     List.map updateTokenFunc currentRow
 
 let setToken board (row,col) token = 
+
+    // helper that finds the current row and applies the map function to it
     let rec setTokenHelper board (row, col) token currentRowIndex = 
         
         if currentRowIndex < 0 || currentRowIndex >= List.length board then []
@@ -147,6 +149,8 @@ let setToken board (row,col) token =
                   
             else currentRow::nextRow()
 
+    // since the board is rebuilt backwards we need to reverse it 
+    // for easy printing
     reverseList (setTokenHelper board (row,col) token (board.Length-1))
 
 
