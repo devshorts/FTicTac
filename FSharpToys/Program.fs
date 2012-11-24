@@ -225,26 +225,25 @@ let gameOver board =
 // play game
 //===========================================
 
-let playGame board (players:IPlayer list) = 
-    let rec playGameHelper board (remainingPlayers:IPlayer list) sourcePlayers = 
-        if gameOver board then 
-            System.Console.WriteLine("Game over!")
-            printBoard board
-            System.Console.ReadKey()
-        else
-            match remainingPlayers with                 
-                | currentPlayer::otherPlayers -> 
-                    printBoard board
-                    let move = currentPlayer.play board
-                    match move with 
-                        | (token, (row, col)) -> 
-                            let newBoard = setToken board (row, col) token
-                            playGameHelper newBoard otherPlayers sourcePlayers
-                             
-                | [] -> playGameHelper board sourcePlayers sourcePlayers 
-
-    playGameHelper board players players
-        
+// makes the players turn and returns the new board
+let takePlayerTurn board (currentPlayer:IPlayer) =     
+    if gameOver board then 
+        board
+    else
+        printBoard board
+        let move = currentPlayer.play board
+        match move with 
+            | (token, (row, col)) -> setToken board (row, col) token
+            
+                                         
+let rec playGame board (players:IPlayer list) =
+    if gameOver board then 
+        System.Console.WriteLine("Game over!")
+        printBoard board
+        System.Console.ReadKey()
+    else
+        let newBoard = List.fold(fun boardAcc currentPlayer -> takePlayerTurn boardAcc currentPlayer) board players
+        playGame newBoard players  
 
 //=======================================
 // define the players
