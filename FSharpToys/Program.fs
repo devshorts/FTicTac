@@ -1,10 +1,30 @@
 ﻿exception DimensionException of string
+exception InvalidPlayer of string
+
+type Player = 
+    | X
+    | O
 
 type CellElement =
-    | Some of string
+    | Some of Player
     | None
 
 let reverseList list = List.fold (fun acc elem -> elem::acc) [] list
+
+//---------------------------------
+// player information
+//---------------------------------
+
+let mapPieceToPlayer piece = 
+    match piece with 
+        | "x" -> Player.X
+        | "o" -> Player.O
+        | _ -> raise(InvalidPlayer("Piece is invalid"))
+
+let tokenType player = 
+    match player with 
+        | Player.X -> "x"
+        | Player.O -> "o"
 
 //---------------------------------
 // create the board
@@ -47,7 +67,7 @@ let rec printRow row =
         | [] -> System.Console.WriteLine()
         | h::t -> 
             match h with 
-               | CellElement.Some(token) ->  System.Console.Write(token)
+               | CellElement.Some(token) -> System.Console.Write(tokenType token) 
                | CellElement.None -> System.Console.Write(" ")
             System.Console.Write(" | ")
             printRow t
@@ -93,26 +113,34 @@ function to the row to transform its elements. The map function finds the right 
 transforms it into the new token (if valid) and returns a new row with the elements updated
 Then we can finish rebuilding the remainder of the board
 *)
-let rec setTokenHelper board (row, col) token iter = 
-    if iter = row then
+let rec setTokenHelper board (row, col) token currentRow = 
+    // returns the next row in the board
+    let nextRow () = setTokenHelper board (row, col) token (currentRow-1)
+
+    if currentRow = row then
+        
+        // if we're on the current row, we apply a map function to the row
+        // to transform it, but we only want to change the actual element at the
+        // column index
+
         let counter = fun x -> x + 1
         let add = ref 0
-        let doUpdateFunction = fun () -> 
+        let isCorrectColumnFunc = fun () -> 
                                         let orig = !add
                                         add := counter !add 
                                         if orig = col then true
                                         else false
 
-        let updateTokenFunc = updateToken (CellElement.Some(token)) doUpdateFunction
+        let updateTokenFunc = updateToken (CellElement.Some(token)) isCorrectColumnFunc
 
-        let rowElement = getRowElement board iter
+        let rowElement = getRowElement board currentRow
 
-        (List.map updateTokenFunc rowElement)::(setTokenHelper board (row, col) token (iter-1))
+        (List.map updateTokenFunc rowElement)::nextRow()
     else
-        if iter = -1 then []            
+        if currentRow = -1 then []            
         else
-            let rowElement = getRowElement board iter
-            rowElement::(setTokenHelper board (row, col) token (iter-1))
+            let rowElement = getRowElement board currentRow
+            rowElement::nextRow()
 
 let setToken board (row,col) token = reverseList (setTokenHelper board (row,col) token (board.Length-1))
 
@@ -126,30 +154,30 @@ Function to test if a row has all the same element. CountBy aggregates the list 
 how many of the cell elements existed.  We can test each type of winner
 *)
 let rowWin row = 
-    let sequences = row |> Seq.countBy id |> Seq.toList
+    let rowsGroupedByToken = row |> Seq.countBy id |> Seq.toList
 
-    let rec testSequences seq = 
-        match seq with 
+    let rec rowHasSameElement rowGroup = 
+        match rowGroup with 
             | [] -> (false, CellElement.None)
             | h::t -> match h with 
                         | (key, count) -> if count = Seq.length row then (true, key)
-                                          else testSequences t
+                                          else rowHasSameElement t
 
-    testSequences sequences
+    rowHasSameElement rowsGroupedByToken
    
 (*
 Helper function to test a group of elements. All elements have to be of the same type
 or they don't win.  We can pass in a recursion function so that we basically get the next 
 set of elements to test.  
 *)
-let testWin elements recursion wintype =
-    let win = rowWin elements
+let testWin cellList callback winTypeString =
+    let win = rowWin cellList
     match win with 
-        | (won, CellElement.Some(n)) -> if won then 
-                                                System.Console.WriteLine("Player {0} has won a {1}!", n, wintype)
+        | (won, CellElement.Some(token)) -> if won then 
+                                                System.Console.WriteLine("Player {0} has won a {1}!", tokenType token, winTypeString)
                                                 true
-                                            else recursion()
-        | (_) -> recursion() 
+                                            else callback()
+        | (_) -> callback() 
 
 (*
 The easiest case with just testing each row
@@ -164,29 +192,32 @@ Check the columns. For each row in the board we want to get the same element
 and create a list out of that. That is the folded column element. We can then treat
 this as a generic "row" of elements and pass it to our test win function
 *)
-let rec gameOverCols board start = 
-    if start >= List.length board then 
+let rec gameOverCols board columnIndex = 
+    if columnIndex >= List.length board then 
         false
     else
-        let elements = List.fold(fun columns row -> (getRowElement row start)::columns) [] board
-        testWin elements (fun () -> gameOverCols board (start+1)) "column"
+        let columnElements = List.fold(fun columns row -> (getRowElement row columnIndex)::columns) [] board
+        let nextColumn = columnIndex + 1
+        testWin columnElements (fun () -> gameOverCols board nextColumn) "column"
     
 
 (*
 We fold the board by selecting each element and updating our accumulator index
-This lets us get item 0, then item 1, then item 2 and leveage getting an element in a row
+This lets us get item 0, then item 1, then item 2 and leveage getting an element in a row/
+We store the diagonal elements via the aggregator
 By psasing in the "updater" function we can either incremenet or decrement where we start from
 *)
 let gameOverDiags board start updater = 
-    let elements = List.fold(fun acc row -> 
-                let index = snd acc
-                let src = fst acc
-                (getRowElement row index)::src, updater index) ([],start) board
+    let diagonalGroup = List.fold(fun acc row -> 
+                let columnIndex = snd acc
+                let nextColumnIndex = updater columnIndex
+                let diagonalElements = fst acc
+                (getRowElement row columnIndex)::diagonalElements, nextColumnIndex) ([],start) board
 
-    let item = match elements with
-                 | (list, item) -> list     
+    let diagonalElements = match diagonalGroup with
+                             | (list, item) -> list     
                                               
-    testWin item (fun () -> false) "diagonal"
+    testWin diagonalElements (fun () -> false) "diagonal"
 
 (*
  Lazily check all the combinatoins: row, columns, diagonals
@@ -213,27 +244,37 @@ let readInPiece () =
     while pieceValid piece = false do
         System.Console.WriteLine("Valid pieces are 'x' and 'o'. You entered {0}", piece)
         piece <- System.Console.ReadLine()
-    piece
+    done
+
+    mapPieceToPlayer piece
 
 let readInPosition boardSize = 
-    let getPos = fun (label : string) -> 
+    let safeConvert (number:string) = 
+        try
+            (System.Convert.ToInt32 number)
+        with
+            | _ -> -1
+
+    let getPosFunc = fun (label : string) -> 
                         System.Console.Write("{0}: ", label)
                         let mutable item = System.Console.ReadLine()
                         
-                        let validMove = fun x -> x >= 0 && x < boardSize
+                        let validMove = fun x -> let num = safeConvert x
+                                                 num >= 0 && num < boardSize
                         
-                        while validMove (System.Convert.ToInt32 item) = false do
+                        while validMove item = false do
                             System.Console.WriteLine("Enter a valid move (0 to {0})", boardSize - 1)
                             item <- System.Console.ReadLine()
+
                         System.Convert.ToInt32(item)
 
-    (getPos "row", getPos "col")
+    (getPosFunc "row", getPosFunc "col")
         
 //===========================================
 // play game
 //===========================================
 
-let rec playGame board = 
+let rec playGame board  = 
     if gameOver board then 
         System.Console.WriteLine("Game over!")
         printBoard board
@@ -242,7 +283,8 @@ let rec playGame board =
         printBoard board
         let move = (readInPiece(), readInPosition board.Length)
         match move with 
-            | (token, (row, col)) -> playGame (setToken board (row, col) token)
+            | (token, (row, col)) -> 
+                let newBoard = setToken board (row, col) token
+                playGame newBoard 
         
-
 ignore(playGame (createBoard 3))
