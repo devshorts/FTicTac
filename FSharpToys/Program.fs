@@ -274,17 +274,27 @@ let readInPosition boardSize =
 // play game
 //===========================================
 
-let rec playGame board  = 
+let rec playGame board humanMoveFunc = 
     if gameOver board then 
         System.Console.WriteLine("Game over!")
         printBoard board
         System.Console.ReadKey()
     else
         printBoard board
-        let move = (readInPiece(), readInPosition board.Length)
+        let move = humanMoveFunc board
         match move with 
             | (token, (row, col)) -> 
                 let newBoard = setToken board (row, col) token
-                playGame newBoard 
+                playGame newBoard humanMoveFunc
+
+//=======================================
+// human player logic
+//=======================================
         
-ignore(playGame (createBoard 3))
+(*
+returns a tuple of player token with a tuple of (row, col)
+*)
+
+let humanPlayerMove board = (readInPiece(), readInPosition (List.length board))
+
+ignore(playGame (createBoard 3) humanPlayerMove)
