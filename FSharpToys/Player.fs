@@ -65,5 +65,6 @@ type HumanPlayer (token:Player) =
     interface IPlayer with
         member this.play board = 
             System.Console.WriteLine("Player {0} turn", tokenType playerToken)
-            (playerToken, this.readInPosition (List.length board))
+            let position = this.readInPosition (List.length board)
+            (playerToken, position)
         

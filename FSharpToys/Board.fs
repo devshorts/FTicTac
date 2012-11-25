@@ -95,6 +95,12 @@ transforms it into the new token (if valid) and returns a new row with the eleme
 Then we can finish rebuilding the remainder of the board
 *)
 
+let isMoveValid board (row, col) = 
+    let cell = getRowElement (getRowElement board row) col
+    match cell with 
+        | CellElement.Some(_) -> false
+        | _ -> true
+
 let private applyMoveToRow currentRow targetColumnIndex token = 
     // if we're on the current row, we apply a map function to the row
     // to transform it, but we only want to change the actual element at the
@@ -152,6 +158,18 @@ let private allCellsHaveSamePlayer cells =
             | h::t -> match h with 
                         | (key, count) -> if count = Seq.length cells then (true, key)
                                           else rowHasSameElement t
+
+    rowHasSameElement rowsGroupedByToken
+
+let private allCellsFull cells = 
+    let rowsGroupedByToken = cells |> Seq.countBy id |> Seq.toList
+
+    let rec rowHasSameElement rowGroup = 
+        match rowGroup with 
+            | [] -> false
+            | h::t -> match h with 
+                        | (CellElement.None, _) -> false
+                        | _ -> true
 
     rowHasSameElement rowsGroupedByToken
    
@@ -212,6 +230,21 @@ let private gameOverDiags board start updater =
                                               
     isWin diagonalElements "diagonal"
 
+let rec private gameOverDeadlock board = 
+    let rec allRowsFull board = 
+        match board with 
+            | [] -> []
+            | h::t -> if allCellsFull h then 
+                        true::(allRowsFull t)
+                      else 
+                        false::(allRowsFull t)
+    let rowStatus = allRowsFull board
+    let deadlock = List.forall(fun elem -> elem) rowStatus
+    if deadlock then 
+        System.Console.WriteLine("Deadlock")
+    deadlock
+    
+
 (*
  Lazily check all the combinatoins: row, columns, diagonals
 *)
@@ -220,7 +253,8 @@ let private gameOver board =
     let colWin = gameOverCols board 0
     let diagWinLeft = gameOverDiags board 0 (fun x -> x + 1)
     let diagWinRight = gameOverDiags board (board.Length-1) (fun x -> x - 1)
-    if(rowWin || colWin || diagWinLeft || diagWinRight) then
+    let deadlockWin = gameOverDeadlock board
+    if(rowWin || colWin || diagWinLeft || diagWinRight || deadlockWin) then
         true
     else 
         false
@@ -231,14 +265,18 @@ let private gameOver board =
 //===========================================
 
 // makes the players turn and returns the new board
-let private takePlayerTurn board (currentPlayer:IPlayer) =     
+let rec private takePlayerTurn board (currentPlayer:IPlayer) =     
     if gameOver board then 
         (true, board)
     else
         printBoard board
         let move = currentPlayer.play board
-        match move with 
-            | (token, (row, col)) -> (false, setToken board (row, col) token)
+        let position = snd move
+        if  (isMoveValid board position) = false then 
+            takePlayerTurn board currentPlayer
+        else
+            match move with 
+                | (token, (row, col)) -> (false, setToken board (row, col) token)
             
                                          
 let rec playGame board (players:IPlayer list) =
