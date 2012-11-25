@@ -92,17 +92,16 @@ transforms it into the new token (if valid) and returns a new row with the eleme
 Then we can finish rebuilding the remainder of the board
 *)
 
-let applyMoveToRow currentRow columnIndex token = 
+let applyMoveToRow currentRow targetColumnIndex token = 
     // if we're on the current row, we apply a map function to the row
     // to transform it, but we only want to change the actual element at the
     // column index
 
-    let counter = fun x -> x + 1
-    let add = ref 0
+    let startColumnIndex = ref 0
     let isCorrectColumnFunc = fun () -> 
-                                    let orig = !add
-                                    add := counter !add 
-                                    if orig = columnIndex then true
+                                    let currentColumnIndex = !startColumnIndex
+                                    startColumnIndex := !startColumnIndex + 1
+                                    if currentColumnIndex = targetColumnIndex then true
                                     else false
 
     let updateTokenFunc = updateToken (CellElement.Some(token)) isCorrectColumnFunc
@@ -158,14 +157,14 @@ Helper function to test a group of elements. All elements have to be of the same
 or they don't win.  We can pass in a recursion function so that we basically get the next 
 set of elements to test.  
 *)
-let isWin cellList callback winTypeString =
+let isWin cellList winTypeString =
     let win = allCellsHaveSamePlayer cellList
     match win with 
         | (won, CellElement.Some(token)) -> if won then 
                                                 System.Console.WriteLine("Player {0} has won a {1}!", tokenType token, winTypeString)
                                                 true
-                                            else callback()
-        | (_) -> callback() 
+                                            else false
+        | (_) -> false
 
 (*
 The easiest case with just testing each row
@@ -173,7 +172,9 @@ The easiest case with just testing each row
 let rec gameOverRows board = 
     match board with
         | [] -> false
-        | row::remainingBoard -> isWin row (fun () -> gameOverRows remainingBoard) "row"
+        | row::nextRows -> if isWin row "row" then true
+                                 else gameOverRows nextRows
+                                
 
 (* 
 Check the columns. For each row in the board we want to get the same element
@@ -186,7 +187,8 @@ let rec gameOverCols board columnIndex =
     else
         let columnElements = List.fold(fun columns row -> (getRowElement row columnIndex)::columns) [] board
         let nextColumn = columnIndex + 1
-        isWin columnElements (fun () -> gameOverCols board nextColumn) "column"
+        if isWin columnElements "column" then true
+        else gameOverCols board nextColumn
     
 
 (*
@@ -205,7 +207,7 @@ let gameOverDiags board start updater =
     let diagonalElements = match diagonalGroup with
                              | (list, item) -> list     
                                               
-    isWin diagonalElements (fun () -> false) "diagonal"
+    isWin diagonalElements "diagonal"
 
 (*
  Lazily check all the combinatoins: row, columns, diagonals
