@@ -228,22 +228,25 @@ let gameOver board =
 // makes the players turn and returns the new board
 let takePlayerTurn board (currentPlayer:IPlayer) =     
     if gameOver board then 
-        board
+        (true, board)
     else
         printBoard board
         let move = currentPlayer.play board
         match move with 
-            | (token, (row, col)) -> setToken board (row, col) token
+            | (token, (row, col)) -> (false, setToken board (row, col) token)
             
                                          
 let rec playGame board (players:IPlayer list) =
-    if gameOver board then 
+    // run the accumulator against  (gameWinBool, newBoard) tuple
+    let winBoardPair = List.fold(fun boardAcc currentPlayer -> takePlayerTurn (snd boardAcc) currentPlayer) (false, board) players
+    let newBoard = snd winBoardPair
+    let gameOver = fst winBoardPair
+    if gameOver then 
         System.Console.WriteLine("Game over!")
-        printBoard board
+        printBoard newBoard
         System.Console.ReadKey()
-    else
-        let newBoard = List.fold(fun boardAcc currentPlayer -> takePlayerTurn boardAcc currentPlayer) board players
-        playGame newBoard players  
+    else playGame newBoard players  
+
 
 //=======================================
 // define the players
