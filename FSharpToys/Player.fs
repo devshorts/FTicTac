@@ -16,8 +16,24 @@ let tokenType player =
 type IPlayer =
     abstract member play : 'a list list -> (Player * (int * int))
 
-type HumanPlayer (token:Player) =
+type ComputerPlayer (token:Player) =
+    let random = new System.Random()
+    let playerToken = token
 
+    member private this.getRandomPosition boardSize =
+        let randomRow = random.Next() % boardSize
+        let randomCol = random.Next() % boardSize
+        (randomRow, randomCol)
+
+    interface IPlayer with
+        member this.play board = 
+            System.Console.WriteLine("Player {0} turn", tokenType playerToken)
+            let boardSize = List.length board
+            (playerToken, (this.getRandomPosition boardSize))
+
+
+
+type HumanPlayer (token:Player) =
     let playerToken = token
 
     //=======================================
