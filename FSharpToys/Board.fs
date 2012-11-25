@@ -5,7 +5,7 @@ exception DimensionException of string
 open TicTacToeData
 open Player
 
-let reverseList list = List.fold (fun acc elem -> elem::acc) [] list
+let private reverseList list = List.fold (fun acc elem -> elem::acc) [] list
 
 //---------------------------------
 // create the board
@@ -26,7 +26,7 @@ let createBoard dimension =
 // get from board
 //---------------------------------
 
-let rec getRowElement row element = 
+let rec private getRowElement row element = 
     if element = 0 then
         match row with
             | [] -> raise(DimensionException("Didn't find a row"))
@@ -36,7 +36,7 @@ let rec getRowElement row element =
             | [] -> raise(DimensionException("Didn't find a row"))
             | h::t -> getRowElement t (element-1)
 
-let getPosition board (row,col) = 
+let private getPosition board (row,col) = 
     let rowArray = getRowElement board row
     getRowElement rowArray col
 
@@ -44,7 +44,7 @@ let getPosition board (row,col) =
 // print board
 //---------------------------------
 
-let rec printRow row = 
+let rec private printRow row = 
     match row with 
         | [] -> System.Console.WriteLine()
         | h::t -> 
@@ -54,7 +54,7 @@ let rec printRow row =
             System.Console.Write(" | ")
             printRow t
 
-let printBoard board =
+let private printBoard board =
     let rec printBoardHelper board = 
         match board with 
             | [] -> System.Console.WriteLine()
@@ -78,7 +78,7 @@ Update token helper. Takes the target token to change to, the current token we a
 If it's not valid, it transform the current item to itself, if it is a vlaid move
 it will transform the current item into the target item
 *)
-let updateToken targetItem doUpdate currentItem = 
+let private updateToken targetItem doUpdate currentItem = 
     if doUpdate() then 
         match currentItem with
             | CellElement.Some(i) -> System.Console.WriteLine("move invalid")
@@ -95,7 +95,7 @@ transforms it into the new token (if valid) and returns a new row with the eleme
 Then we can finish rebuilding the remainder of the board
 *)
 
-let applyMoveToRow currentRow targetColumnIndex token = 
+let private applyMoveToRow currentRow targetColumnIndex token = 
     // if we're on the current row, we apply a map function to the row
     // to transform it, but we only want to change the actual element at the
     // column index
@@ -111,7 +111,7 @@ let applyMoveToRow currentRow targetColumnIndex token =
 
     List.map updateTokenFunc currentRow
 
-let setToken board (row,col) token = 
+let private setToken board (row,col) token = 
 
     // helper that finds the current row and applies the map function to it
     let rec setTokenHelper board (row, col) token currentRowIndex = 
@@ -143,7 +143,7 @@ Function to test if a row has all the same element. CountBy aggregates the list 
 (item, count) so we can fold the list into a list of tuples that tells us 
 how many of the cell elements existed.  We can test each type of winner
 *)
-let allCellsHaveSamePlayer cells = 
+let private allCellsHaveSamePlayer cells = 
     let rowsGroupedByToken = cells |> Seq.countBy id |> Seq.toList
 
     let rec rowHasSameElement rowGroup = 
@@ -160,7 +160,7 @@ Helper function to test a group of elements. All elements have to be of the same
 or they don't win.  We can pass in a recursion function so that we basically get the next 
 set of elements to test.  
 *)
-let isWin cellList winTypeString =
+let private isWin cellList winTypeString =
     let win = allCellsHaveSamePlayer cellList
     match win with 
         | (won, CellElement.Some(token)) -> if won then 
@@ -172,7 +172,7 @@ let isWin cellList winTypeString =
 (*
 The easiest case with just testing each row
 *)
-let rec gameOverRows board = 
+let rec private gameOverRows board = 
     match board with
         | [] -> false
         | row::nextRows -> if isWin row "row" then true
@@ -184,7 +184,7 @@ Check the columns. For each row in the board we want to get the same element
 and create a list out of that. That is the folded column element. We can then treat
 this as a generic "row" of elements and pass it to our test win function
 *)
-let rec gameOverCols board columnIndex = 
+let rec private gameOverCols board columnIndex = 
     if columnIndex >= List.length board then 
         false
     else
@@ -200,7 +200,7 @@ This lets us get item 0, then item 1, then item 2 and leveage getting an element
 We store the diagonal elements via the aggregator
 By psasing in the "updater" function we can either incremenet or decrement where we start from
 *)
-let gameOverDiags board start updater = 
+let private gameOverDiags board start updater = 
     let diagonalGroup = List.fold(fun acc row -> 
                 let columnIndex = snd acc
                 let nextColumnIndex = updater columnIndex
@@ -215,7 +215,7 @@ let gameOverDiags board start updater =
 (*
  Lazily check all the combinatoins: row, columns, diagonals
 *)
-let gameOver board = 
+let private gameOver board = 
     let rowWin = gameOverRows board
     let colWin = gameOverCols board 0
     let diagWinLeft = gameOverDiags board 0 (fun x -> x + 1)
@@ -231,7 +231,7 @@ let gameOver board =
 //===========================================
 
 // makes the players turn and returns the new board
-let takePlayerTurn board (currentPlayer:IPlayer) =     
+let private takePlayerTurn board (currentPlayer:IPlayer) =     
     if gameOver board then 
         (true, board)
     else

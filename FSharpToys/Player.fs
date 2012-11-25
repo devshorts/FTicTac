@@ -24,7 +24,7 @@ type HumanPlayer (token:Player) =
     // input
     //=======================================
 
-    member this.readInPosition boardSize = 
+    member private this.readInPosition boardSize = 
         let safeConvert (number:string) = 
             try
                 (System.Convert.ToInt32 number)
