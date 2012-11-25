@@ -1,14 +1,9 @@
 ﻿module Player
 
+open TicTacToeData
+
 exception InvalidPlayer of string
 
-type Player = 
-    | X
-    | O
-
-type CellElement =
-    | Some of Player
-    | None
 //---------------------------------
 // player information
 //---------------------------------
