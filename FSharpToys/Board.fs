@@ -11,7 +11,7 @@ let private reverseList list = List.fold (fun acc elem -> elem::acc) [] list
 // create the board
 //---------------------------------
 
-let createBoard dimension =     
+let createBoard dimension =            
     let rec createRow width = 
         if width = 0 then []
         else CellElement.None::createRow(width - 1)
@@ -166,10 +166,10 @@ let private allCellsFull cells =
 
     let rec rowHasSameElement rowGroup = 
         match rowGroup with 
-            | [] -> false
+            | [] -> true
             | h::t -> match h with 
                         | (CellElement.None, _) -> false
-                        | _ -> true
+                        | _ -> rowHasSameElement t
 
     rowHasSameElement rowsGroupedByToken
    

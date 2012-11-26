@@ -15,6 +15,6 @@ let playerO = new Player.ComputerPlayer(Player.O) :> IPlayer
 
 let playersList = [playerX;playerO]
 
-let startingBoard = Board.createBoard 3
+let startingBoard = Board.createBoard 5
 
 ignore(Board.playGame startingBoard playersList)
